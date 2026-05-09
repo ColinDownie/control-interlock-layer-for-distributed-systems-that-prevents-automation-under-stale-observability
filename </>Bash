@@ -1,0 +1,15 @@
+srm-engine/
+├── cmd/
+│   └── srm/
+│       └── main.go
+├── internal/
+│   ├── metrics/
+│   │   ├── prometheus.go
+│   ├── model/
+│   │   ├── gap.go
+│   ├── decision/
+│   │   ├── engine.go
+│   ├── server/
+│       ├── api.go
+├── go.mod
+├── Dockerfile
