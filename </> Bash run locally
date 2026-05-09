@@ -1,0 +1,3 @@
+kind create cluster
+make install
+make run
