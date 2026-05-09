@@ -1,0 +1,5 @@
+if G >= 1.0 {
+    deployment.Spec.Paused = true
+} else {
+    deployment.Spec.Paused = false
+}
