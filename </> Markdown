@@ -1,0 +1,27 @@
+# Sync SRM Controller
+
+A Kubernetes safety interlock that pauses deployments when system synchronization is lost.
+
+## Core Principle
+
+Reliability is a function of timing:
+
+G = (τ_obs + τ_act) * ω
+
+If G ≥ 1 → system enters Blind Zone → automation is paused.
+
+## Components
+
+- SRM: real-time signal provider
+- Controller: Kubernetes enforcement layer
+- CRD: SyncMonitor
+
+## Behavior
+
+- Monitors system volatility
+- Computes synchronization risk
+- Pauses deployments when observability is invalid
+
+## Status
+
+MVP prototype
