@@ -1,0 +1,14 @@
+package main
+
+import (
+    "log"
+    "net/http"
+    "srm/internal/server"
+)
+
+func main() {
+    http.HandleFunc("/sync", server.Handler)
+
+    log.Println("SRM Engine running on :8080")
+    http.ListenAndServe(":8080", nil)
+}
