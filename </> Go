@@ -1,0 +1,42 @@
+package v1alpha1
+
+import (
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+)
+
+// +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
+type SyncMonitor struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	Spec   SyncMonitorSpec   `json:"spec,omitempty"`
+	Status SyncMonitorStatus `json:"status,omitempty"`
+}
+
+type SyncMonitorSpec struct {
+	// Prometheus or SRM endpoint
+	SRMEndpoint string `json:"srmEndpoint"`
+
+	// Target deployment namespace
+	Namespace string `json:"namespace"`
+
+	// Target deployment label selector
+	Selector map[string]string `json:"selector"`
+
+	// Threshold for Blind Zone
+	Threshold float64 `json:"threshold"`
+}
+
+type SyncMonitorStatus struct {
+	G             float64 `json:"g"`
+	State         string  `json:"state"` // GREEN / YELLOW / RED
+	LastEvaluated string  `json:"lastEvaluated"`
+}
+
+// +kubebuilder:object:root=true
+type SyncMonitorList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata,omitempty"`
+	Items           []SyncMonitor `json:"items"`
+}
