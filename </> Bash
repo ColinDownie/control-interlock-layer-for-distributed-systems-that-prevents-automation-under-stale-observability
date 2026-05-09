@@ -1,0 +1,13 @@
+sync-controller/
+├── api/
+│   └── v1alpha1/
+│       ├── syncmonitor_types.go
+│       └── groupversion_info.go
+├── controllers/
+│   └── syncmonitor_controller.go
+├── main.go
+├── go.mod
+└── config/
+    ├── crd/
+    ├── rbac/
+    └── manager/
