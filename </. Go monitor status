@@ -1,0 +1,5 @@
+type SyncMonitorStatus struct {
+	G             float64 `json:"g"`
+	State         string  `json:"state"`
+	LastEvaluated string  `json:"lastEvaluated"`
+}
