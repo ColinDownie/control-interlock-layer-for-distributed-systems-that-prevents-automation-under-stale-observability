@@ -1,0 +1,2 @@
+kubebuilder init --domain gpak.io --repo github.com/YOURNAME/sync-srm-controller
+kubebuilder create api --group sync --version v1alpha1 --kind SyncMonitor
