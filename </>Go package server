@@ -1,0 +1,23 @@
+package server
+
+import (
+    "encoding/json"
+    "net/http"
+    "srm/internal/decision"
+    "srm/internal/model"
+)
+
+func Handler(w http.ResponseWriter, r *http.Request) {
+
+    // MVP: replace with Prometheus query later
+    input := model.Inputs{
+        Omega:  1.2,
+        TauObs: 0.4,
+        TauAct: 0.3,
+    }
+
+    result := decision.Evaluate(input)
+
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(result)
+}
