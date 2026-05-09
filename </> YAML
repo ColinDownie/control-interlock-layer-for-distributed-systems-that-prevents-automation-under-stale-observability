@@ -1,0 +1,10 @@
+apiVersion: sync.gpaK.io/v1alpha1
+kind: SyncMonitor
+metadata:
+  name: api-sync
+spec:
+  srmEndpoint: "http://srm-service:8080/signal"
+  namespace: production
+  selector:
+    app: api
+  threshold: 1.0
