@@ -1,0 +1,4 @@
+mkdir sync-srm-controller
+cd sync-srm-controller
+
+kubebuilder init --domain gpak.io --repo github.com/YOURNAME/sync-srm-controller
