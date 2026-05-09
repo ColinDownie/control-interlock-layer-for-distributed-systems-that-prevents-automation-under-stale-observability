@@ -1,0 +1,32 @@
+package decision
+
+import "srm/internal/model"
+
+type State string
+
+const (
+    STABLE   State = "STABLE"
+    FRAGILE  State = "FRAGILE"
+    BLIND    State = "BLIND_ZONE"
+)
+
+type Output struct {
+    State  State
+    G      float64
+    Action string
+}
+
+func Evaluate(i model.Inputs) Output {
+    g := model.ComputeG(i)
+
+    switch {
+    case g < 0.5:
+        return Output{STABLE, g, "ALLOW_AUTOMATION"}
+
+    case g < 1.0:
+        return Output{FRAGILE, g, "SLOW_CHANGES"}
+
+    default:
+        return Output{BLIND, g, "DAMP_SYSTEM"}
+    }
+}
