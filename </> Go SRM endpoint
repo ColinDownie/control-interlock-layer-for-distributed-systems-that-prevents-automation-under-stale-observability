@@ -1,0 +1,10 @@
+func handler(w http.ResponseWriter, r *http.Request) {
+	resp := SRMSignal{
+		Omega:  0.9,
+		TauObs: 0.4,
+		TauAct: 0.3,
+	}
+	resp.G = (resp.TauObs + resp.TauAct) * resp.Omega
+
+	json.NewEncoder(w).Encode(resp)
+}
