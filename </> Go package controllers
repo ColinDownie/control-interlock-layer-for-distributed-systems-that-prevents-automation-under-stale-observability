@@ -1,0 +1,111 @@
+package controllers
+
+import (
+	"context"
+	"encoding/json"
+	"net/http"
+	"time"
+
+	appsv1 "k8s.io/api/apps/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/types"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	syncv1 "sync-controller/api/v1alpha1"
+)
+
+type SyncMonitorReconciler struct {
+	client.Client
+}
+
+type SRMSignal struct {
+	Omega     float64 `json:"omega"`
+	TauObs    float64 `json:"tau_obs"`
+	TauAct    float64 `json:"tau_act"`
+	G         float64 `json:"g"`
+}
+
+func (r *SyncMonitorReconciler) fetchSRM(endpoint string) (*SRMSignal, error) {
+	resp, err := http.Get(endpoint)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	var signal SRMSignal
+	err = json.NewDecoder(resp.Body).Decode(&signal)
+	return &signal, err
+}
+
+func (r *SyncMonitorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+
+	var sm syncv1.SyncMonitor
+	if err := r.Get(ctx, req.NamespacedName, &sm); err != nil {
+		if errors.IsNotFound(err) {
+			return ctrl.Result{}, nil
+		}
+		return ctrl.Result{}, err
+	}
+
+	// 1. Pull SRM signal
+	signal, err := r.fetchSRM(sm.Spec.SRMEndpoint)
+	if err != nil {
+		return ctrl.Result{RequeueAfter: 5 * time.Second}, nil
+	}
+
+	G := signal.G
+
+	// 2. Determine state
+	state := "GREEN"
+	paused := false
+
+	if G >= sm.Spec.Threshold {
+		state = "RED"
+		paused = true
+	} else if G >= sm.Spec.Threshold*0.5 {
+		state = "YELLOW"
+	}
+
+	// 3. List deployments
+	var deployments appsv1.DeploymentList
+	if err := r.List(ctx, &deployments,
+		client.InNamespace(sm.Spec.Namespace)); err != nil {
+		return ctrl.Result{}, err
+	}
+
+	// 4. Apply actuation (BLIND ZONE protection)
+	for _, dep := range deployments.Items {
+
+		// label filter
+		match := true
+		for k, v := range sm.Spec.Selector {
+			if dep.Labels[k] != v {
+				match = false
+			}
+		}
+		if !match {
+			continue
+		}
+
+		// PATCH: pause/unpause deployment
+		if dep.Spec.Paused != paused {
+			dep.Spec.Paused = paused
+			_ = r.Update(ctx, &dep)
+		}
+	}
+
+	// 5. Update status
+	sm.Status.G = G
+	sm.Status.State = state
+	sm.Status.LastEvaluated = time.Now().String()
+	_ = r.Status().Update(ctx, &sm)
+
+	return ctrl.Result{RequeueAfter: 2 * time.Second}, nil
+}
+
+func (r *SyncMonitorReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	return ctrl.NewControllerManagedBy(mgr).
+		For(&syncv1.SyncMonitor{}).
+		Complete(r)
+}
