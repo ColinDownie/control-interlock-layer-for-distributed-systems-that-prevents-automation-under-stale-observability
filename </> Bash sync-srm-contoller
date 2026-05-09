@@ -1,0 +1,24 @@
+sync-srm-controller/
+├── api/
+│   └── v1alpha1/
+│       ├── syncmonitor_types.go
+│       └── zz_generated.deepcopy.go
+│
+├── controllers/
+│   └── syncmonitor_controller.go
+│
+├── config/
+│   ├── crd/
+│   ├── rbac/
+│   ├── manager/
+│   └── samples/
+│
+├── hack/
+│   └── fake-srm/            # 🔥 critical for tonight
+│       └── main.go
+│
+├── Dockerfile
+├── Makefile
+├── main.go
+├── go.mod
+└── README.md
