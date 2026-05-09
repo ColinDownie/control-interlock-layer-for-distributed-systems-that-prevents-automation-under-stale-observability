@@ -1,0 +1,6 @@
+type SyncMonitorSpec struct {
+	SRMEndpoint string            `json:"srmEndpoint"`
+	Namespace   string            `json:"namespace"`
+	Selector    map[string]string `json:"selector"`
+	Threshold   float64           `json:"threshold"`
+}
