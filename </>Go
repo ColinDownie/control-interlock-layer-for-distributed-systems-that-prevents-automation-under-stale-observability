@@ -1,0 +1,11 @@
+package model
+
+type Inputs struct {
+    Omega   float64 // system drift rate
+    TauObs  float64 // observability lag
+    TauAct  float64 // action latency
+}
+
+func ComputeG(i Inputs) float64 {
+    return (i.TauObs + i.TauAct) * i.Omega
+}
