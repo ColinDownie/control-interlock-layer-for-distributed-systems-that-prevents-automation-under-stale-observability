@@ -1,0 +1,4 @@
+go version
+kubebuilder version
+kubectl version --client
+kind version
