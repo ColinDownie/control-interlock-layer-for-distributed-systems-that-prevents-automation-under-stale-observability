@@ -1,0 +1,1 @@
+brew install go kubebuilder kind kubectl kustomize
