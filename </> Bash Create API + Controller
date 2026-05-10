@@ -1,0 +1,4 @@
+kubebuilder create api \
+  --group sync \
+  --version v1alpha1 \
+  --kind SynchronizationMonitor
