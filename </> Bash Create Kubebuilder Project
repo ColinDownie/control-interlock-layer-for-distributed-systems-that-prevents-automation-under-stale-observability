@@ -1,0 +1,3 @@
+kubebuilder init \
+  --domain syncradar.io \
+  --repo github.com/YOUR_GITHUB/sync-radar
