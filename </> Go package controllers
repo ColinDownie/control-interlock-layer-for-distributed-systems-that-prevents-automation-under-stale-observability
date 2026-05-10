@@ -7,10 +7,13 @@ import (
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
+
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	syncv1 "sync-controller/api/v1alpha1"
 )
@@ -20,10 +23,10 @@ type SyncMonitorReconciler struct {
 }
 
 type SRMSignal struct {
-	Omega     float64 `json:"omega"`
-	TauObs    float64 `json:"tau_obs"`
-	TauAct    float64 `json:"tau_act"`
-	G         float64 `json:"g"`
+	Omega  float64 `json:"omega"`
+	TauObs float64 `json:"tau_obs"`
+	TauAct float64 `json:"tau_act"`
+	G      float64 `json:"g"`
 }
 
 func (r *SyncMonitorReconciler) fetchSRM(endpoint string) (*SRMSignal, error) {
@@ -34,77 +37,108 @@ func (r *SyncMonitorReconciler) fetchSRM(endpoint string) (*SRMSignal, error) {
 	defer resp.Body.Close()
 
 	var signal SRMSignal
+
 	err = json.NewDecoder(resp.Body).Decode(&signal)
-	return &signal, err
+	if err != nil {
+		return nil, err
+	}
+
+	return &signal, nil
 }
 
-func (r *SyncMonitorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+func (r *SyncMonitorReconciler) Reconcile(
+	ctx context.Context,
+	req ctrl.Request,
+) (ctrl.Result, error) {
+
+	logger := log.FromContext(ctx)
 
 	var sm syncv1.SyncMonitor
-	if err := r.Get(ctx, req.NamespacedName, &sm); err != nil {
-		if errors.IsNotFound(err) {
+
+	err := r.Get(ctx, req.NamespacedName, &sm)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
 			return ctrl.Result{}, nil
 		}
 		return ctrl.Result{}, err
 	}
 
-	// 1. Pull SRM signal
+	// Fetch SRM signal
 	signal, err := r.fetchSRM(sm.Spec.SRMEndpoint)
 	if err != nil {
-		return ctrl.Result{RequeueAfter: 5 * time.Second}, nil
+		logger.Error(err, "failed to fetch SRM signal")
+
+		return ctrl.Result{
+			RequeueAfter: 5 * time.Second,
+		}, nil
 	}
 
-	G := signal.G
+	// Fetch target deployment
+	var deployment appsv1.Deployment
 
-	// 2. Determine state
-	state := "GREEN"
-	paused := false
+	err = r.Get(
+		ctx,
+		types.NamespacedName{
+			Name:      sm.Spec.TargetDeployment,
+			Namespace: sm.Namespace,
+		},
+		&deployment,
+	)
 
-	if G >= sm.Spec.Threshold {
-		state = "RED"
-		paused = true
-	} else if G >= sm.Spec.Threshold*0.5 {
-		state = "YELLOW"
-	}
-
-	// 3. List deployments
-	var deployments appsv1.DeploymentList
-	if err := r.List(ctx, &deployments,
-		client.InNamespace(sm.Spec.Namespace)); err != nil {
+	if err != nil {
 		return ctrl.Result{}, err
 	}
 
-	// 4. Apply actuation (BLIND ZONE protection)
-	for _, dep := range deployments.Items {
+	// BLIND ZONE
+	if signal.G >= 1.0 {
 
-		// label filter
-		match := true
-		for k, v := range sm.Spec.Selector {
-			if dep.Labels[k] != v {
-				match = false
+		if !deployment.Spec.Paused {
+
+			deployment.Spec.Paused = true
+
+			err := r.Update(ctx, &deployment)
+			if err != nil {
+				return ctrl.Result{}, err
 			}
-		}
-		if !match {
-			continue
+
+			logger.Info(
+				"Deployment paused due to BLIND_ZONE",
+				"deployment",
+				deployment.Name,
+				"G",
+				signal.G,
+			)
 		}
 
-		// PATCH: pause/unpause deployment
-		if dep.Spec.Paused != paused {
-			dep.Spec.Paused = paused
-			_ = r.Update(ctx, &dep)
+	} else {
+
+		// synchronized again
+		if deployment.Spec.Paused {
+
+			deployment.Spec.Paused = false
+
+			err := r.Update(ctx, &deployment)
+			if err != nil {
+				return ctrl.Result{}, err
+			}
+
+			logger.Info(
+				"Deployment resumed",
+				"deployment",
+				deployment.Name,
+				"G",
+				signal.G,
+			)
 		}
 	}
 
-	// 5. Update status
-	sm.Status.G = G
-	sm.Status.State = state
-	sm.Status.LastEvaluated = time.Now().String()
-	_ = r.Status().Update(ctx, &sm)
-
-	return ctrl.Result{RequeueAfter: 2 * time.Second}, nil
+	return ctrl.Result{
+		RequeueAfter: 5 * time.Second,
+	}, nil
 }
 
 func (r *SyncMonitorReconciler) SetupWithManager(mgr ctrl.Manager) error {
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&syncv1.SyncMonitor{}).
 		Complete(r)
