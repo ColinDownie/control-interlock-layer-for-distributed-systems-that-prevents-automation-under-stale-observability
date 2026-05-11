@@ -1,0 +1,1 @@
+go run hack/fake-srm/main.go
